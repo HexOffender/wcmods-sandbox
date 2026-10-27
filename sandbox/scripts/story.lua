@@ -220,6 +220,7 @@ return function(state)
                 local key = m.id .. "/" .. def.id
                 P.quests[key] = P.quests[key] or { step = 1, got = 0 }
                 local q = { key = key, def = def, mod = mod, p = P.quests[key] }
+                if q.p.step > #def.steps then q.p.done = true end
                 quests[#quests + 1] = q
                 mod.byId[def.id] = q
             end
@@ -270,12 +271,15 @@ return function(state)
     Game.on("itemPickedUp", function(tag, count)
         if not running then return end
         tag = tostring(tag)
+        local hits = {}
         for _, q in ipairs(quests) do
             local s = active(q) and stepOf(q)
-            if s and s["do"] == "collect" and s.item == tag then
-                q.p.got = (q.p.got or 0) + (tonumber(count) or 1)
-                if q.p.got >= s.count then advance(q) else remember() report(q) end
-            end
+            if s and s["do"] == "collect" and s.item == tag then hits[#hits + 1] = { q, s } end
+        end
+        for _, h in ipairs(hits) do
+            local q, s = h[1], h[2]
+            q.p.got = (q.p.got or 0) + (tonumber(count) or 1)
+            if q.p.got >= s.count then advance(q) else remember() report(q) end
         end
     end)
 
@@ -308,13 +312,15 @@ return function(state)
         local me = Game.cat()
         local here = me and me:location()
         if not here then return end
+        local arrived = {}
         for _, q in ipairs(quests) do
             local s = active(q) and stepOf(q)
             if s and s["do"] == "visit" and (not s.level or s.level == Game.levelName()) then
                 local to = visitTarget(s)
-                if to and distance(here, to) <= (s.radius or 400) then advance(q) end
+                if to and distance(here, to) <= (s.radius or 400) then arrived[#arrived + 1] = q end
             end
         end
+        for _, q in ipairs(arrived) do advance(q) end
     end)
 
     -- ------------------------------------------------------------------ talking
@@ -330,10 +336,10 @@ return function(state)
     local function nextLine()
         talking.n = talking.n + 1
         if talking.n <= #talking.lines then return end
-        local q = talking.quest
+        local q, step = talking.quest, talking.step
         talking = nil
         Game.dialogue.hide()
-        if q then advance(q) end
+        if q and not q.p.done and q.p.step == step then advance(q) end
     end
 
     Game.onPress(KEYS, function()
@@ -350,10 +356,10 @@ return function(state)
         else
             local g = giverOf(c)
             local s = g and stepOf(g)
-            lines = s and { objective(g, s) .. "?" } or nil
+            lines = s and { "Don't forget: " .. objective(g, s) .. "." } or nil
         end
         if not lines or #lines == 0 then return end
-        talking = { cat = c, lines = lines, n = 1, quest = q }
+        talking = { cat = c, lines = lines, n = 1, quest = q, step = q and q.p.step }
         c.npc:face()
     end, "Talk to a cat from Clan Mod Studio")
 

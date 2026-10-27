@@ -44,6 +44,35 @@ it).
 
 The mod's folder must be called `sandbox`: that's its id, and the name other mods give in `"requires"`.
 
+## Cats and questlines from Clan Mod Studio
+
+You don't need to write code to fill the sandbox. Clan Mod Studio (a wcmods with its Characters and Questlines pages) has pages for
+it under **Make mods**:
+
+- **Characters:** cats of your own, with their name, a title over it ("Elder"), colours, eyes, size, where
+  they stand and what they say.
+- **Questlines:** quests with those cats, step by step: talk to a cat, pick things up, go somewhere (a spot
+  you stand on in the game, or your Clan's medicine cat). A quest can wait for others to be done first, so
+  quests make a story, and it ends with a reward dropped at your cat's paws.
+- **Items:** herbs and materials of your own, for recipes and rewards. They're real items, in story games
+  too.
+
+Save them to a mod, then Apply (or Play). This mod brings the cats into the forest with a sandbox cat and
+runs the quests:
+
+- A cat without a spot of its own turns up beside your sandbox cat the first time it comes into the
+  forest, and stays there for that cat. **G** (or the d-pad's up) talks to the nearest one; Enter or G again
+  goes on. A **!** over a cat means a quest wants you to talk to it.
+- The quests going on show at the top right, with a marker on where to go. The mod menu's **Questlines**
+  page lists them, can start one over and can bring a cat beside you again; the Quests page (with Menu
+  pages) lists them with the game's.
+- How far each sandbox cat has got is kept in `sandbox-story.json` beside the game's saves, by save slot.
+
+To share what you made, use **Share** on any of those pages: **Save as .zip** gives the whole mod, which
+anyone adds on their Mods page. It needs this mod, so turning it on turns this one on.
+[`examples/sandbox-story`](examples/sandbox-story) is one made that way: two cats, two quests one after
+the other, and a herb of its own for the reward.
+
 ## For mod makers
 
 Sandbox mode does nothing with the world but take the story out. What goes in is up to other mods: cats of
@@ -114,10 +143,11 @@ them. It shows a cat, its talk, a quest listed on the mod menu's Quests page, co
 ```
 sandbox/
   mod.json              its name, version and the game builds it was tried on
-  scripts/main.lua      starts the two parts
+  scripts/main.lua      starts the parts below
   scripts/frontend.lua  the main menu's button and the cat choice
   scripts/world.lua     the forest with a sandbox cat, and the shared variables
   scripts/registry.lua  the list of sandbox cats (sandbox.json)
+  scripts/story.lua     the cats and questlines from Clan Mod Studio (wcmods shares them as WCMods.story)
 ```
 
 - **The button** is one more of the main menu's own buttons (`WBP_GuiButtonMenu_C`), put in its column

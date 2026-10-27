@@ -15,7 +15,7 @@
 local WORLD = "L_WorldMap_01_P"
 local NARRATIVE = "Gameplay.Narrative."
 local SKIP_HOLD = 2.5   -- seconds the skip is held: long enough for the game's hold to fill (seen in game)
-local VERSION = "0.2"    -- mod.json's
+local VERSION = "0.3"    -- mod.json's
 
 return function(state, Reg)
     local session = 0

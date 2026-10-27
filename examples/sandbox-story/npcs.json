@@ -1,0 +1,36 @@
+{
+  "_help": "Written by Clan Mod Studio (Characters). Cats of this mod's own, which the Sandbox mode mod brings into the game. See docs/formats.md, npcs.json.",
+  "npcs": [
+    {
+      "id": "brindlemoon",
+      "name": "Brindlemoon",
+      "title": "Elder",
+      "colours": {
+        "fur": "#7a5a3c",
+        "pattern": "#3b2a1c",
+        "markings": "#e8dcc8",
+        "nose": "#b07a6a"
+      },
+      "eyes": 4,
+      "size": 0.95,
+      "lines": [
+        "My old bones know the forest better than my eyes do now.",
+        "Mind the river after rain, young one."
+      ]
+    },
+    {
+      "id": "sparrowpaw",
+      "name": "Sparrowpaw",
+      "title": "Apprentice",
+      "colours": {
+        "fur": "#b9a48a",
+        "markings": "#f2ebe0"
+      },
+      "eyes": 10,
+      "size": 0.7,
+      "lines": [
+        "Have you seen Brindlemoon? She knows all the old stories."
+      ]
+    }
+  ]
+}

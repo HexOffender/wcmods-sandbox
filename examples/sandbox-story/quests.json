@@ -1,0 +1,77 @@
+{
+  "_help": "Written by Clan Mod Studio (Questlines). This mod's questlines, which the Sandbox mode mod runs. See docs/formats.md, quests.json.",
+  "quests": [
+    {
+      "id": "soft-nest",
+      "title": "A Soft Nest",
+      "giver": "brindlemoon",
+      "after": [],
+      "steps": [
+        {
+          "do": "talk",
+          "npc": "brindlemoon",
+          "lines": [
+            "Ah, a young cat with keen eyes. Will you help an old elder?",
+            "My nest is thin and the nights are cold. Bring me moss, would you?"
+          ],
+          "objective": "Talk to Brindlemoon"
+        },
+        {
+          "do": "collect",
+          "item": "Gameplay.Inventory.Materials.Moss",
+          "count": 2,
+          "objective": "Find Moss ×2"
+        },
+        {
+          "do": "talk",
+          "npc": "brindlemoon",
+          "lines": [
+            "Soft as a kit's fur. Thank you.",
+            "Sparrowpaw was asking after you. Go and see what they want."
+          ],
+          "objective": "Bring the moss to Brindlemoon"
+        }
+      ],
+      "reward": {
+        "Gameplay.Inventory.Materials.Dandelion": 2
+      }
+    },
+    {
+      "id": "moon-herb",
+      "title": "The Moon Herb",
+      "giver": "sparrowpaw",
+      "after": [
+        "soft-nest"
+      ],
+      "steps": [
+        {
+          "do": "talk",
+          "npc": "sparrowpaw",
+          "lines": [
+            "Brindlemoon says some herbs only open under the moon!",
+            "Will you ask our medicine cat if it's true?"
+          ],
+          "objective": "Talk to Sparrowpaw"
+        },
+        {
+          "do": "visit",
+          "place": "medicine-cat",
+          "radius": 500,
+          "objective": "Visit your Clan's medicine cat"
+        },
+        {
+          "do": "talk",
+          "npc": "sparrowpaw",
+          "lines": [
+            "It's true? I knew it!",
+            "Here, I found these by the moonlit pool. Take them."
+          ],
+          "objective": "Tell Sparrowpaw"
+        }
+      ],
+      "reward": {
+        "Gameplay.Inventory.Consumable.MoonHerb": 2
+      }
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-"""Pack the mods for a release: dist/sandbox-<version>.zip and dist/sandbox-welcome-<version>.zip, each with
+"""Pack the mods for a release: dist/sandbox-<version>.zip, and the examples' (sandbox-welcome, sandbox-story), each with
 the mod's folder at its top (the way wcmods adds a mod from a .zip). Each mod's folder name is its id, and
 "sandbox" is the one other mods name in "requires".
 
@@ -14,7 +14,8 @@ import zipfile
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODS = {"sandbox": os.path.join(HERE, "sandbox"),
-        "sandbox-welcome": os.path.join(HERE, "examples", "sandbox-welcome")}
+        "sandbox-welcome": os.path.join(HERE, "examples", "sandbox-welcome"),
+        "sandbox-story": os.path.join(HERE, "examples", "sandbox-story")}
 API = os.path.join(HERE, "api", "sandbox_api.lua")
 
 

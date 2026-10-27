@@ -1,0 +1,19 @@
+{
+  "_help": "Written by Clan Mod Studio (Items). Herbs and materials of this mod's own. See docs/SDK.md, New items.",
+  "items": [
+    {
+      "id": "MoonHerb",
+      "kind": "consumable",
+      "like": "MediumHealingHerb",
+      "name": "Moon Herb",
+      "description": "Health Recovery (medium). It opens only under the moon.",
+      "icon": {
+        "tint": "#a8c4ff"
+      },
+      "recipe": {
+        "Moss": 2,
+        "Dandelion": 1
+      }
+    }
+  ]
+}

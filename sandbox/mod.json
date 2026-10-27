@@ -1,7 +1,7 @@
 {
   "name": "Sandbox mode",
-  "description": "A Sandbox Mode on the game's main menu: make a cat in any Clan and play the normal forest with no story and no quests, a clean slate for other mods to fill with their own cats and quests. Needs UE4SS, and mods that run code allowed.",
-  "version": "0.2",
+  "description": "A Sandbox Mode on the game's main menu: make a cat in any Clan and play the normal forest with no story and no quests, a clean slate for other mods to fill. It brings in the cats and questlines made on Clan Mod Studio's Characters and Questlines pages. Needs UE4SS, and mods that run code allowed.",
+  "version": "0.3",
   "author": "wcmods",
   "game_builds": [
     26184573

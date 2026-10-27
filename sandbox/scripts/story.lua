@@ -24,12 +24,16 @@ local PATH = Game.save.folder() .. "\\sandbox-story.json"
 
 return function(state)
     local native = Game.npcs.onInteract ~= nil   -- wcmods' own labels and prompts (npc:label, npc:prompt)
+    local nativeHud = Game.hud ~= nil and Game.mapMarker ~= nil   -- the game's objective panel, banners, map markers
     local linesFor   -- what a cat says now (below)
     local mods = {}             -- the mods' cats and quests, as wcmods shares them
     local cats = {}             -- list of { key, def, mod, npc }
     local catByKey = {}
     local quests = {}           -- list of { key, def, mod, p } (p: this cat's progress on it)
     local P                     -- this sandbox cat's progress: { quests = { [key] = {step, got, done} }, cats = { [key] = {at, yaw, level} } }
+    local icons = {}            -- item tag -> its icon's texture, for the game's objective panel
+    local focus                 -- the quest the game's objective panel shows: the one that moved last
+    local places = {}           -- quest key -> the map marker on where its step goes
     local slot, running
     local talking               -- { cat, lines, n, quest } while a cat is talking
     local done = {}             -- { title, at }: quests just finished, said on screen for a while
@@ -132,6 +136,14 @@ return function(state)
     -- On to the quest's next step; after the last, the reward. Quests waiting for this one may start.
     local function advance(q)
         q.p.step, q.p.got = q.p.step + 1, 0
+        focus = q.key
+        if nativeHud then
+            -- The game's banners: a quest taken up (its first talk done), moved on, or completed.
+            local kind = q.p.step > #q.def.steps and "done" or q.p.step == 2 and "begin" or "update"
+            local upcoming = q.def.steps[q.p.step]
+            Game.hud.banner(kind, { kind = kind == "begin" and "Quest" or nil, title = q.def.title,
+                                    text = kind == "begin" and upcoming and objective(q, upcoming) or nil })
+        end
         if q.p.step > #q.def.steps then
             q.p.done = true
             for tag, n in pairs(q.def.reward or {}) do
@@ -146,9 +158,12 @@ return function(state)
     end
 
     -- ------------------------------------------------------------------ cats
+    -- Where round your cat each one goes (degrees from where it faces), so they don't stand on each other.
+    local SIDES = { -60, 60, -110, 110, -150, 150 }
+
     local function spawn(c, at, yaw, level)
         if c.npc then c.npc:remove() end
-        c.shown = nil   -- its label and prompt go on the new one
+        c.shown, c.marked = nil, nil   -- its label, prompt and marker go on the new one
         c.npc = Game.npcs.spawn({ at = at, yaw = yaw or 0, level = level, size = c.def.size, eyes = c.def.eyes,
                                   colours = c.def.colours or {} })
     end
@@ -163,8 +178,7 @@ return function(state)
         if mine and mine.at then
             return spawn(c, mine.at, mine.yaw, mine.level)
         end
-        local sides = { -60, 60, -110, 110, -150, 150 }
-        local at, yaw = Game.npcs.spot(220 + 60 * math.floor((i - 1) / #sides), sides[(i - 1) % #sides + 1])
+        local at, yaw = Game.npcs.spot(220 + 60 * math.floor((i - 1) / #SIDES), SIDES[(i - 1) % #SIDES + 1])
         if not at then return end   -- no room yet: tried again in a second
         local here = { math.floor(at.X), math.floor(at.Y), math.floor(at.Z) }
         P.cats[c.key] = { at = here, yaw = yaw, level = Game.levelName() }
@@ -175,7 +189,10 @@ return function(state)
     -- A cat brought beside your cat again (the mod menu's page): the same cat moves, as a new one would get
     -- new patterns from the game.
     local function bring(c)
-        local at, yaw = Game.npcs.spot(220, -60)
+        local i = 1
+        for n, other in ipairs(cats) do if other == c then i = n end end
+        -- Each its own side and distance: a side that's blocked falls back to another, which may be taken.
+        local at, yaw = Game.npcs.spot(200 + 90 * (i - 1), SIDES[(i - 1) % #SIDES + 1])
         if not at then return end
         local here = { math.floor(at.X), math.floor(at.Y), math.floor(at.Z) }
         P.cats[c.key] = { at = here, yaw = yaw, level = Game.levelName() }
@@ -218,6 +235,7 @@ return function(state)
         for _, m in ipairs(data.mods) do
             local mod = { id = m.id, name = m.name or m.id, byId = {} }
             mods[#mods + 1] = mod
+            icons = data.icons or icons
             for _, def in ipairs(m.npcs or {}) do
                 local c = { key = m.id .. "/" .. def.id, def = def, mod = mod }
                 cats[#cats + 1] = c
@@ -246,7 +264,12 @@ return function(state)
             for _, q in ipairs(quests) do Game.quests.report(q.key, nil) end
         end
         if talking then Game.dialogue.hide() end
-        talking, running, P, slot = nil, false, nil, nil
+        if nativeHud then
+            Game.hud.objective(nil)
+            for _, m in pairs(places) do m:remove() end
+            places = {}
+        end
+        talking, running, P, slot, focus = nil, false, nil, nil, nil
         cats, catByKey, quests, done = {}, {}, {}, {}
     end
 
@@ -271,7 +294,9 @@ return function(state)
             for _, c in ipairs(cats) do
                 if c.npc then
                     local q, g = waitingFor(c), giverOf(c)
-                    local icon = q and (q.p.step == 1 and "available" or "done") or g and "ongoing" or nil
+                    -- The game's marks: a quest to take up, to hand in (its last step), or going on.
+                    local icon = q and (q.p.step == 1 and "available" or q.p.step == #q.def.steps and "done" or "ongoing")
+                        or g and "ongoing" or nil
                     local extra = (q or g) and (q or g).def.title or nil
                     local talks = linesFor(c) ~= nil
                     local now = tostring(icon) .. "|" .. tostring(extra) .. "|" .. tostring(talks)
@@ -280,6 +305,45 @@ return function(state)
                         c.npc:prompt(talks and "Talk" or nil, TALK_RANGE)
                         c.shown = now
                     end
+                end
+            end
+        end
+        if nativeHud then
+            -- The game's objective panel: the quest that moved last, or the first one going on.
+            local q = focus and (function() for _, x in ipairs(quests) do if x.key == focus and active(x) then return x end end end)()
+            if not q then for _, x in ipairs(quests) do if active(x) then q = x break end end end
+            local s = q and stepOf(q)
+            if s then
+                local goals
+                if s["do"] == "collect" then
+                    goals = { { name = itemName(s.item), progress = progressText(q, s), icon = icons[s.item] } }
+                end
+                Game.hud.objective({ title = q.def.title, location = q.mod.name, activity = objective(q, s), goals = goals })
+            else
+                Game.hud.objective(nil)
+            end
+            -- Map markers: on each cat a quest wants you to talk to, and on each place a quest wants you to go
+            -- (the game marks its medicine cat already).
+            local want = {}
+            for _, x in ipairs(quests) do
+                local st = active(x) and stepOf(x)
+                if st and st["do"] == "talk" then want[x.mod.id .. "/" .. st.npc] = true end
+                local key = st and st["do"] == "visit" and st.at and (x.key .. "#" .. x.p.step) or nil
+                if key and not places[key] then places[key] = Game.mapMarker(st.at, { icon = "search" }) or false end
+            end
+            for key, m in pairs(places) do
+                local qkey, step = key:match("^(.*)#(%d+)$")
+                local x
+                for _, y in ipairs(quests) do if y.key == qkey then x = y end end
+                if not (x and active(x) and x.p.step == tonumber(step)) then
+                    if m then m:remove() end
+                    places[key] = nil
+                end
+            end
+            for _, c in ipairs(cats) do
+                if c.npc and (c.marked == true) ~= (want[c.key] == true) then
+                    c.npc:mapMarker(want[c.key] and "talk" or nil)
+                    c.marked = want[c.key] == true
                 end
             end
         end
@@ -438,7 +502,7 @@ return function(state)
             end
         end
 
-        if not showPanel then return end
+        if not showPanel or nativeHud then return end
         -- The quests going on, at the top right, with a marker on where each wants you to go.
         local shown = {}
         for _, q in ipairs(quests) do

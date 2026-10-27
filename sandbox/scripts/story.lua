@@ -4,7 +4,10 @@
 -- sandbox cat and runs the quests.
 --
 -- A cat stands where its mod says, or beside your cat the first time it comes into the forest (and stays
--- there for that cat). G (or the d-pad's up) talks to the nearest one; Enter or G again goes on. A quest
+-- there for that cat). It wears the game's own label (its name, its title, and the game's quest marks) and
+-- takes the game's Talk prompt, so the game's Interact key or button talks to it, and goes on with the talk
+-- (Enter too). With a wcmods older than Game.npcs.onInteract, the names are drawn and G (or the d-pad's up)
+-- talks instead. A quest
 -- starts once the quests it comes after are done, and its steps go in order: talk to a cat, pick things up,
 -- go somewhere. The reward is dropped at your cat's paws. How far each sandbox cat has got, and where its
 -- cats stand, is kept in sandbox-story.json beside the game's saves, by save slot.
@@ -16,9 +19,12 @@ local KEYS = { "G", "Gamepad_DPad_Up" }
 local KEY_LABEL = "G"
 local TALK_RANGE, WALK_AWAY, LABEL_RANGE = 300, 600, 2500   -- cm
 local PANEL_QUESTS = 3          -- quests shown in the panel at once
+local NATIVE_MARKER_FROM = 2000  -- cm: nearer than this, the game's own label marks a cat to talk to
 local PATH = Game.save.folder() .. "\\sandbox-story.json"
 
 return function(state)
+    local native = Game.npcs.onInteract ~= nil   -- wcmods' own labels and prompts (npc:label, npc:prompt)
+    local linesFor   -- what a cat says now (below)
     local mods = {}             -- the mods' cats and quests, as wcmods shares them
     local cats = {}             -- list of { key, def, mod, npc }
     local catByKey = {}
@@ -142,6 +148,7 @@ return function(state)
     -- ------------------------------------------------------------------ cats
     local function spawn(c, at, yaw, level)
         if c.npc then c.npc:remove() end
+        c.shown = nil   -- its label and prompt go on the new one
         c.npc = Game.npcs.spawn({ at = at, yaw = yaw or 0, level = level, size = c.def.size, eyes = c.def.eyes,
                                   colours = c.def.colours or {} })
     end
@@ -260,6 +267,22 @@ return function(state)
         for i, c in ipairs(cats) do
             if not c.npc then place(c, i) end
         end
+        if native then
+            for _, c in ipairs(cats) do
+                if c.npc then
+                    local q, g = waitingFor(c), giverOf(c)
+                    local icon = q and (q.p.step == 1 and "available" or "done") or g and "ongoing" or nil
+                    local extra = (q or g) and (q or g).def.title or nil
+                    local talks = linesFor(c) ~= nil
+                    local now = tostring(icon) .. "|" .. tostring(extra) .. "|" .. tostring(talks)
+                    if c.shown ~= now then
+                        c.npc:label({ name = c.def.name, title = c.def.title, extra = extra, icon = icon })
+                        c.npc:prompt(talks and "Talk" or nil, TALK_RANGE)
+                        c.shown = now
+                    end
+                end
+            end
+        end
         -- Walking away ends a talk.
         if talking and not (talking.cat.npc and talking.cat.npc:near(WALK_AWAY)) then
             talking = nil
@@ -342,26 +365,43 @@ return function(state)
         if q and not q.p.done and q.p.step == step then advance(q) end
     end
 
-    Game.onPress(KEYS, function()
-        if not running or #Game.screens() > 0 then return end
-        if talking then return nextLine() end
-        local c = nearest()
-        if not c or Game.dialogue.busy() or not Game.dialogue.claim() then return end
+    -- What a cat says now: a quest's talk, its own lines, or a reminder of the quest it gave.
+    linesFor = function(c)
         local q = waitingFor(c)
-        local lines
-        if q then
-            lines = stepOf(q).lines
-        elseif c.def.lines and #c.def.lines > 0 then
-            lines = c.def.lines
-        else
-            local g = giverOf(c)
-            local s = g and stepOf(g)
-            lines = s and { "Don't forget: " .. objective(g, s) .. "." } or nil
-        end
+        if q then return stepOf(q).lines, q end
+        if c.def.lines and #c.def.lines > 0 then return c.def.lines end
+        local g = giverOf(c)
+        local s = g and stepOf(g)
+        return s and { "Don't forget: " .. objective(g, s) .. "." } or nil
+    end
+
+    local function startTalk(c)
+        if not c or Game.dialogue.busy() or not Game.dialogue.claim() then return end
+        local lines, q = linesFor(c)
         if not lines or #lines == 0 then return end
         talking = { cat = c, lines = lines, n = 1, quest = q, step = q and q.p.step }
         c.npc:face()
-    end, "Talk to a cat from Clan Mod Studio")
+    end
+
+    if native then
+        -- The game's Interact at a cat's prompt starts a talk; while one is on, it goes on.
+        Game.npcs.onInteract(function(npc)
+            if not running then return end
+            if npc == nil then
+                if talking then nextLine() end
+                return
+            end
+            for _, c in ipairs(cats) do
+                if c.npc == npc then return startTalk(c) end
+            end
+        end)
+    else
+        Game.onPress(KEYS, function()
+            if not running or #Game.screens() > 0 then return end
+            if talking then return nextLine() end
+            startTalk(nearest())
+        end, "Talk to a cat from Clan Mod Studio")
+    end
 
     -- Enter too, while talking: it's the key the game's dialogue box shows.
     Game.onPress("Enter", function()
@@ -377,9 +417,10 @@ return function(state)
         end
         if talking then Game.dialogue.say(talking.cat.def.name, talking.lines[talking.n]) end
 
-        -- Names over the cats' heads, a ! over one a quest wants you to talk to, and the talk prompt.
+        -- Names over the cats' heads, a ! over one a quest wants you to talk to, and the talk prompt (the
+        -- game's own, with a wcmods that has them).
         local close = not talking and nearest()
-        for _, c in ipairs(cats) do
+        for _, c in ipairs(native and {} or cats) do
             local away = c.npc and c.npc:valid() and c.npc:distance()
             if away and away <= LABEL_RANGE then
                 local head = c.npc:location()
@@ -421,6 +462,8 @@ return function(state)
             if s["do"] == "talk" then
                 local c = catByKey[q.mod.id .. "/" .. s.npc]
                 to = c and c.npc and c.npc:valid() and c.npc:location()
+                -- Close by, the game's label marks the cat already; the marker is for finding it.
+                if to and native and (c.npc:distance() or 0) < NATIVE_MARKER_FROM then to = nil end
             elseif s["do"] == "visit" then
                 to = visitTarget(s)
             end

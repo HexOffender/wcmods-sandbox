@@ -1,0 +1,14 @@
+{
+  "name": "Sandbox welcome",
+  "description": "An example of filling Sandbox mode: Mossfoot turns up beside your sandbox cat with a small quest (three dandelions). G, or the d-pad's up, talks to them. Needs the Sandbox mode mod.",
+  "version": "0.2",
+  "author": "wcmods",
+  "requires": [
+    "sandbox"
+  ],
+  "game_builds": [
+    26184573
+  ],
+  "enabled": true,
+  "priority": 0
+}

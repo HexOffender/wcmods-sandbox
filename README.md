@@ -61,8 +61,10 @@ Save them to a mod, then Apply (or Play). This mod brings the cats into the fore
 runs the quests:
 
 - A cat without a spot of its own turns up beside your sandbox cat the first time it comes into the
-  forest, and stays there for that cat. **G** (or the d-pad's up) talks to the nearest one; Enter or G again
-  goes on. A **!** over a cat means a quest wants you to talk to it.
+  forest, and stays there for that cat. They wear the game's own label over their heads, with the game's
+  quest marks, and the game's own **Talk** prompt: its Interact key or button (E, or A on a controller)
+  talks to them and goes on with the talk. (With an older wcmods, without these, the names are drawn and
+  **G**, or the d-pad's up, talks instead.)
 - The quests going on show at the top right, with a marker on where to go. The mod menu's **Questlines**
   page lists them, can start one over and can bring a cat beside you again; the Quests page (with Menu
   pages) lists them with the game's.
@@ -147,7 +149,8 @@ sandbox/
   scripts/frontend.lua  the main menu's button and the cat choice
   scripts/world.lua     the forest with a sandbox cat, and the shared variables
   scripts/registry.lua  the list of sandbox cats (sandbox.json)
-  scripts/story.lua     the cats and questlines from Clan Mod Studio (wcmods shares them as WCMods.story)
+  scripts/story.lua     the cats and questlines from Clan Mod Studio (wcmods shares them as WCMods.story),
+                        with the game's own labels and Talk prompt (npc:label, npc:prompt)
 ```
 
 - **The button** is one more of the main menu's own buttons (`WBP_GuiButtonMenu_C`), put in its column

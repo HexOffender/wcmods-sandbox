@@ -164,8 +164,9 @@ return function(state)
     local function spawn(c, at, yaw, level)
         if c.npc then c.npc:remove() end
         c.shown, c.marked = nil, nil   -- its label, prompt and marker go on the new one
+        -- A cat without a look of its own ("look" and "slots") gets one the game makes up, new each time.
         c.npc = Game.npcs.spawn({ at = at, yaw = yaw or 0, level = level, size = c.def.size, eyes = c.def.eyes,
-                                  colours = c.def.colours or {} })
+                                  colours = c.def.colours or {}, look = c.def.look, slots = c.def.slots })
     end
 
     -- Where each cat goes: its mod's place, the place it was given for this sandbox cat, or (the first time)

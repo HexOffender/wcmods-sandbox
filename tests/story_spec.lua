@@ -211,7 +211,7 @@ test("test_changed_quest_starts_over", function()
     local other = { id = "herbs", title = "Herbs", giver = "sparrowpaw", after = {}, steps = {
         { ["do"] = "talk", npc = "sparrowpaw", lines = { "Hi" } }, { ["do"] = "talk", npc = "sparrowpaw", lines = { "Bye" } } } }
     writeProgress(f, { ["3"] = { made = "B", cats = {}, quests = {
-        ["mine/moss"] = { step = 3, got = 0, shape = "talk|talk" },             -- a Pick up step went in since
+        ["mine/moss"] = { step = 2, got = 0, shape = "talk|talk" },             -- a Pick up step went in since
         ["mine/herbs"] = { step = 2, got = 0, shape = "talk|talk" } } } })      -- unchanged (new lines don't count)
     local w = world({ shared = story({ mossQuest(), other }), folder = f, registry = { { slot = 3, made = "B" } } })
     w.tick()
@@ -223,6 +223,34 @@ test("test_changed_quest_starts_over", function()
     eq(w.banners[1].kind, "update")
     eq(w.banners[1].text, "Moss for Mossfoot changed in Clan Mod Studio, so it starts again")
     ok(w.logged("mine/moss changed in Clan Mod Studio, so it starts again"))
+    os.remove(progressPath(f))
+end)
+
+test("test_a_finished_quest_stays_finished_when_it_changes", function()
+    local f = folder()
+    local herbs = { id = "herbs", title = "Herbs", giver = "sparrowpaw", after = { "moss" }, steps = {
+        { ["do"] = "talk", npc = "sparrowpaw", lines = { "Hi" } } } }
+    writeProgress(f, { ["3"] = { made = "B", cats = {}, quests = {
+        ["mine/moss"] = { step = 3, got = 0, done = true, shape = "talk|talk" },   -- finished; a Pick up step went in since
+        ["mine/old"] = { step = 3, got = 0, shape = "talk|talk" } } } })          -- past its last step: finished too
+    local old = { id = "old", title = "Old", after = {}, steps = { { ["do"] = "collect", item = MOSS, count = 1 } } }
+    local w = world({ shared = story({ mossQuest(), herbs, old }), folder = f, registry = { { slot = 3, made = "B" } } })
+    w.tick()
+    local p = readProgress(f)["3"]
+    eq(p.quests["mine/moss"].done, true, "still finished")
+    eq(p.quests["mine/moss"].step, 4, "past its new last step")
+    eq(p.quests["mine/moss"].shape, MOSS_SHAPE, "with its new shape")
+    eq(p.quests["mine/old"].step, 2, "the other finished one too, past its one step")
+    eq(w.reports["mine/moss"].status, "done")
+    eq(#w.banners, 0, "no start-over banner")
+    ok(not w.logged("starts again"), "nothing starts again")
+    eq(#w.drops, 0, "its reward isn't dropped again")
+    ok(w.reports["mine/herbs"] and w.reports["mine/herbs"].status == "active", "the quest after it isn't held back")
+    -- Back in the forest later: still finished, and the shape kept.
+    local again = world({ shared = story({ mossQuest(), herbs, old }), folder = f, registry = { { slot = 3, made = "B" } } })
+    again.tick()
+    eq(again.reports["mine/moss"].status, "done")
+    eq(#again.banners, 0)
     os.remove(progressPath(f))
 end)
 
@@ -315,6 +343,30 @@ test("test_a_spot_without_facing_turns_to_your_cat_once", function()
     eq(w.npc(1).faced, 1, "once")
     eq(w.npc(2).faced, nil, "a cat with a facing of its own keeps it")
     os.remove(progressPath(f))
+end)
+
+test("test_a_wait_is_logged_once_there_is_something_to_say", function()
+    local f = folder()
+    local realClock, now = os.clock, 0
+    os.clock = function() return now end   -- story.lua times a cat's wait with os.clock
+    local passed, err = pcall(function()
+        local w = world({ shared = story({}, { { id = "mossfoot", name = "Mossfoot", lines = {} } }), folder = f,
+                          registry = { { slot = 3, made = "B" } } })
+        w.tick()                               -- beside your cat, in the forest
+        w.npc(1).removed = true                -- gone from the world, in this level: nothing the log can say
+        w.tick(); now = 11; w.tick()
+        ok(not w.logged("Mossfoot waits for"), "nothing said yet")
+        w.level = "L_Other"                    -- now it waits for the forest
+        w.tick()
+        ok(w.logged("Mossfoot waits for the forest; you're in L_Other"), "said once there's something to say")
+        w.tick(3)
+        local n = 0
+        for _, l in ipairs(w.logs) do if l:find("Mossfoot waits for", 1, true) then n = n + 1 end end
+        eq(n, 1, "and only once")
+    end)
+    os.clock = realClock
+    os.remove(progressPath(f))
+    if not passed then error(err, 0) end
 end)
 
 test("test_menu_page_is_under_story_says_about_it_and_starts_every_questline_over", function()

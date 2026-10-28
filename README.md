@@ -75,10 +75,13 @@ runs the quests:
 - A cat placed at a spot of its own with no facing turns to face your cat the first time it's there.
 - How far each sandbox cat has got is kept in `sandbox-story.json` beside the game's saves: one record per
   save slot, with when the sandbox cat in it was made, so a new sandbox cat made in the slot of one you
-  deleted starts every questline from the beginning. Each quest's record keeps its shape (its steps, and
-  what a Pick up step wants): a quest whose steps you change in Clan Mod Studio starts over by itself, with
-  the game's banner saying so; new lines or a new title don't restart it. Clan Mod Studio's Questlines page
-  has **Start every questline over** too, for when the game is closed.
+  deleted starts every questline from the beginning. Each quest's record keeps its shape (its steps' kinds,
+  and what a Pick up step wants): a quest a cat hasn't finished starts over by itself, with the game's
+  banner saying so, when you add or take out a step in Clan Mod Studio, change a step's kind (moving steps
+  can do that), or change what or how many a Pick up step wants. New lines, objectives or a new title don't
+  restart it, and a quest the cat has finished stays finished (its reward isn't dropped again). Clan Mod
+  Studio's Questlines page has **Start every questline over** too (from the wcmods release that carries
+  it), for every mod's questlines while the game is closed.
 - **Versions that go together:** the game's own labels and *Talk* prompt need a wcmods with
   `Game.npcs.onInteract`; the objective panel and the map markers need one with `Game.hud` and
   `Game.mapMarker`; a character's fixed look (Same look every time) needs Sandbox mode 0.5; progress per
@@ -209,3 +212,7 @@ on every pull request, and packs the .zips.
 2. `python tools/pack.py` makes `dist/sandbox-<version>.zip`, `dist/sandbox-welcome-<version>.zip` and
    `dist/sandbox-story-<version>.zip`.
 3. Make a GitHub release tagged `v<version>` with them attached.
+
+Release a new version before, or together with, the wcmods release whose Clan Mod Studio names it: the
+studio's Characters and Questlines pages tell creators to download `sandbox-<version>.zip`, which has to be
+on the Releases page by then.

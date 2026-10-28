@@ -13,7 +13,8 @@
 -- cats stand, is kept in sandbox-story.json beside the game's saves: one record per save slot, with when
 -- the sandbox cat in it was made (the registry's stamp), so a new cat made in the slot of one that was
 -- deleted starts afresh. Each quest's record keeps its shape (its steps' kinds, and what a collect step
--- wants), so a quest changed in Clan Mod Studio starts over instead of going on from a step that moved.
+-- wants), so a quest changed in Clan Mod Studio while a cat is on it starts over instead of going on from a
+-- step that moved; one the cat has finished stays finished.
 local Draw = require("WCModsDraw")
 local View = require("WCModsView")
 
@@ -147,8 +148,9 @@ return function(state, Reg)
         })
     end
 
-    -- A quest's shape: its steps' kinds, with what a collect step wants ("talk|collect:<tag>:2|talk"). A quest
-    -- whose shape changed since a cat's progress on it was saved starts over; new lines or a new title don't.
+    -- A quest's shape: its steps' kinds, with what a collect step wants ("talk|collect:<tag>:2|talk"). A quest a
+    -- cat hasn't finished starts over when its shape changed since its progress was saved; a finished one stays
+    -- finished. New lines or a new title don't count.
     local function shapeOf(def)
         local parts = {}
         for _, s in ipairs(def.steps or {}) do
@@ -156,6 +158,14 @@ return function(state, Reg)
                 or tostring(s["do"])
         end
         return table.concat(parts, "|")
+    end
+
+    -- How many steps a shape has.
+    local function stepsIn(shape)
+        if shape == "" then return 0 end
+        local n = 1
+        for _ in shape:gmatch("|") do n = n + 1 end
+        return n
     end
 
     local function reportAll()
@@ -305,12 +315,17 @@ return function(state, Reg)
             for _, def in ipairs(m.quests or {}) do
                 local key, shape = m.id .. "/" .. def.id, shapeOf(def)
                 local p = P.quests[key]
-                if p and p.shape and p.shape ~= shape then
-                    -- Its steps changed in Clan Mod Studio since this cat got as far as it did: from the start,
-                    -- done or not.
-                    MOD.log("%s changed in Clan Mod Studio, so it starts again", key)
-                    restarted[#restarted + 1] = def.title
-                    p = nil
+                if p and type(p.shape) == "string" and p.shape ~= shape then
+                    if p.done or (tonumber(p.step) or 1) > stepsIn(p.shape) then
+                        -- Finished before its steps changed: it stays finished, with its new shape (its reward
+                        -- isn't dropped again, and the quests after it aren't held back).
+                        p.step, p.got, p.done = #(def.steps or {}) + 1, 0, true
+                    else
+                        -- Its steps changed in Clan Mod Studio while this cat was on it: from the start.
+                        MOD.log("%s changed in Clan Mod Studio, so it starts again", key)
+                        restarted[#restarted + 1] = def.title
+                        p = nil
+                    end
                 end
                 p = p or { step = 1, got = 0 }
                 p.shape = shape   -- one saved before shapes were kept takes today's and goes on
@@ -381,12 +396,15 @@ return function(state, Reg)
             else
                 c.waitingSince = c.waitingSince or os.clock()
                 if not c.waitSaid and os.clock() - c.waitingSince > WAIT_SAID then
-                    c.waitSaid = true
+                    -- Said once, and only once there's something to say: a wait with no reason the log can give
+                    -- leaves a later one (another level, no room) to be said.
                     local level = c.npc and c.npc.level
                     if level and level ~= Game.levelName() then
                         MOD.log("%s waits for %s; you're in %s", c.def.name, levelWords(level), levelWords(Game.levelName()))
+                        c.waitSaid = true
                     elseif not c.npc then
                         MOD.log("%s has no room beside your cat yet", c.def.name)
+                        c.waitSaid = true
                     end
                 end
             end

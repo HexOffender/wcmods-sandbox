@@ -66,13 +66,32 @@ runs the quests:
   quest marks, and the game's own **Talk** prompt: its Interact key or button (E, or A on a controller)
   talks to them and goes on with the talk. (With an older wcmods, without these, the names are drawn and
   **G**, or the d-pad's up, talks instead.)
-- The quests going on show at the top right, with a marker on where to go. The mod menu's **Questlines**
-  page lists them, can start one over and can bring a cat beside you again; the Quests page (with Menu
-  pages) lists them with the game's.
-- How far each sandbox cat has got is kept in `sandbox-story.json` beside the game's saves, by save slot.
+- The step you're on shows in the game's objective panel on the left, with a marker on the map where to
+  go (with an older wcmods, without them, the quests going on are drawn at the top right). The mod menu's
+  **Questlines** page (under Story) lists them, with each quest's "About it" under its title, can start
+  one or every questline over, says where each cat is ("In the world", "Waiting for the forest", "No room
+  beside you yet") and can bring a cat beside you again; the Quests page (with Menu pages) lists them with
+  the game's.
+- A cat placed at a spot of its own with no facing turns to face your cat the first time it's there.
+- How far each sandbox cat has got is kept in `sandbox-story.json` beside the game's saves: one record per
+  save slot, with when the sandbox cat in it was made, so a new sandbox cat made in the slot of one you
+  deleted starts every questline from the beginning. Each quest's record keeps its shape (its steps' kinds,
+  and what a Pick up step wants): a quest a cat hasn't finished starts over by itself, with the game's
+  banner saying so, when you add or take out a step in Clan Mod Studio, change a step's kind (moving steps
+  can do that), or change what or how many a Pick up step wants. New lines, objectives or a new title don't
+  restart it, and a quest the cat has finished stays finished (its reward isn't dropped again). Clan Mod
+  Studio's Questlines page has **Start every questline over** too (from the wcmods release that carries
+  it), for every mod's questlines while the game is closed.
+- **Versions that go together:** the game's own labels and *Talk* prompt need a wcmods with
+  `Game.npcs.onInteract`; the objective panel and the map markers need one with `Game.hud` and
+  `Game.mapMarker`; a character's fixed look (Same look every time) needs Sandbox mode 0.5; progress per
+  cat and quests that start over when changed are 0.5's too. A `sandbox-story.json` written by 0.4 is kept
+  as it is and takes the new records from its next save. Clan Mod Studio's Characters and Questlines pages
+  say which version you have and what it can show.
 
 To share what you made, use **Share** on any of those pages: **Save as .zip** gives the whole mod, which
-anyone adds on their Mods page. It needs this mod, so turning it on turns this one on.
+anyone adds on their Mods page. It works with this mod (`"uses": ["sandbox"]`, which the studio writes):
+turning it on turns this one on when it's there, and without it the rest of the mod still goes in.
 [`examples/sandbox-story`](examples/sandbox-story) is one made that way: two cats, two quests one after
 the other, and a herb of its own for the reward.
 
@@ -178,9 +197,22 @@ sandbox/
   Not tried yet: a ShadowClan cat, the controller and the mouse on the button, and removing a sandbox cat
   (the list should forget it the next time the cat choice opens).
 
+## Tests
+
+`python tests/run.py` checks that every Lua file loads, then runs `tests/story_spec.lua`: the story part
+(`scripts/story.lua`) with the game stubbed, driven through what it registers (its half-second keeper, the
+`itemPickedUp` event, the Talk prompt, its drawing and its mod menu page). It needs Lua 5.4, the version
+UE4SS embeds (`lua5.4`, or a `lua` that is 5.4, on the PATH); without one it says so and skips. CI runs it
+on every pull request, and packs the .zips.
+
 ## Releasing
 
 1. Raise `"version"` in `sandbox/mod.json` (and `VERSION` in `scripts/world.lua`, which other mods see).
    After a game update, try it on the new build and add the build's number to `"game_builds"`.
-2. `python tools/pack.py` makes `dist/sandbox-<version>.zip` and `dist/sandbox-welcome-<version>.zip`.
-3. Make a GitHub release tagged `v<version>` with both attached.
+2. `python tools/pack.py` makes `dist/sandbox-<version>.zip`, `dist/sandbox-welcome-<version>.zip` and
+   `dist/sandbox-story-<version>.zip`.
+3. Make a GitHub release tagged `v<version>` with them attached.
+
+Release a new version before, or together with, the wcmods release whose Clan Mod Studio names it: the
+studio's Characters and Questlines pages tell creators to download `sandbox-<version>.zip`, which has to be
+on the Releases page by then.

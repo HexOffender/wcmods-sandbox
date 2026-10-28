@@ -49,8 +49,9 @@ The mod's folder must be called `sandbox`: that's its id, and the name other mod
 You don't need to write code to fill the sandbox. Clan Mod Studio (a wcmods with its Characters and Questlines pages) has pages for
 it under **Make mods**:
 
-- **Characters:** cats of your own, with their name, a title over it ("Elder"), colours, eyes, size, where
-  they stand and what they say.
+- **Characters:** cats of your own, with their name, a title over it ("Elder"), a look (one the game makes
+  up each time they appear, or a fixed one: their shape, pattern and colour slots), colours, eyes, size,
+  where they stand and what they say.
 - **Questlines:** quests with those cats, step by step: talk to a cat, pick things up, go somewhere (a spot
   you stand on in the game, or your Clan's medicine cat). A quest can wait for others to be done first, so
   quests make a story, and it ends with a reward dropped at your cat's paws.

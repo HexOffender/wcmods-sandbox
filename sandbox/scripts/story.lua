@@ -10,19 +10,26 @@
 -- talks instead. A quest
 -- starts once the quests it comes after are done, and its steps go in order: talk to a cat, pick things up,
 -- go somewhere. The reward is dropped at your cat's paws. How far each sandbox cat has got, and where its
--- cats stand, is kept in sandbox-story.json beside the game's saves, by save slot.
+-- cats stand, is kept in sandbox-story.json beside the game's saves: one record per save slot, with when
+-- the sandbox cat in it was made (the registry's stamp), so a new cat made in the slot of one that was
+-- deleted starts afresh. Each quest's record keeps its shape (its steps' kinds, and what a collect step
+-- wants), so a quest changed in Clan Mod Studio starts over instead of going on from a step that moved.
 local Draw = require("WCModsDraw")
 local View = require("WCModsView")
 
 local VARIABLE = "WCMods.story"
+local FORMAT = 1                -- the newest WCMods.story this reads (wcmods/story.py FORMAT)
 local KEYS = { "G", "Gamepad_DPad_Up" }
 local KEY_LABEL = "G"
 local TALK_RANGE, WALK_AWAY, LABEL_RANGE = 300, 600, 2500   -- cm
 local PANEL_QUESTS = 3          -- quests shown in the panel at once
 local NATIVE_MARKER_FROM = 2000  -- cm: nearer than this, the game's own label marks a cat to talk to
 local PATH = Game.save.folder() .. "\\sandbox-story.json"
+local WAIT_SAID = 10            -- seconds a cat waits for its level before the log says so
+local LEVEL_WORDS = { L_WorldMap_01_P = "the forest" }
+local function levelWords(level) return LEVEL_WORDS[level] or tostring(level) end
 
-return function(state)
+return function(state, Reg)
     local native = Game.npcs.onInteract ~= nil   -- wcmods' own labels and prompts (npc:label, npc:prompt)
     local nativeHud = Game.hud ~= nil and Game.mapMarker ~= nil   -- the game's objective panel, banners, map markers
     local linesFor   -- what a cat says now (below)
@@ -30,7 +37,9 @@ return function(state)
     local cats = {}             -- list of { key, def, mod, npc }
     local catByKey = {}
     local quests = {}           -- list of { key, def, mod, p } (p: this cat's progress on it)
-    local P                     -- this sandbox cat's progress: { quests = { [key] = {step, got, done} }, cats = { [key] = {at, yaw, level} } }
+    -- This sandbox cat's progress: { made = its registry stamp, quests = { [key] = {step, got, done, shape} },
+    -- cats = { [key] = {at, yaw, level} } }
+    local P
     local icons = {}            -- item tag -> its icon's texture, for the game's objective panel
     local focus                 -- the quest the game's objective panel shows: the one that moved last
     local places = {}           -- quest key -> the map marker on where its step goes
@@ -44,7 +53,14 @@ return function(state)
         local ok, text = pcall(function() return ModRef:GetSharedVariable(VARIABLE) end)
         if not ok or type(text) ~= "string" or text == "" then return nil end
         local okJ, data = pcall(Game.json.decode, text)
-        if okJ and type(data) == "table" and type(data.mods) == "table" then return data end
+        if okJ and type(data) == "table" and type(data.mods) == "table" then
+            if type(data.format) == "number" and data.format > FORMAT then
+                MOD.log("the cats and questlines are in a newer format (%s) than this Sandbox mode reads (%d); update Sandbox mode",
+                        tostring(data.format), FORMAT)
+                return nil
+            end
+            return data
+        end
         MOD.log("couldn't read the cats and questlines: %s", tostring(data))
         return nil
     end
@@ -61,7 +77,7 @@ return function(state)
     local function remember()
         if slot == nil or not P then return end
         local all = readAll()
-        all._help = "How far each sandbox cat (by save slot) has got with the questlines from Clan Mod Studio, and where their cats stand. Written by the Sandbox mode mod."
+        all._help = "How far each sandbox cat (by save slot, with when it was made) has got with the questlines from Clan Mod Studio, and where their cats stand. Written by the Sandbox mode mod."
         all[tostring(slot)] = P
         local f, err = io.open(PATH, "wb")
         if not f then
@@ -123,10 +139,23 @@ return function(state)
             return
         end
         local s = stepOf(q)
+        -- description: for a wcmods whose report carries it (an older one leaves it out).
         Game.quests.report(q.key, {
             title = q.def.title, by = q.mod.name, status = q.p.done and "done" or "active",
             objective = s and objective(q, s) or "Done", progress = s and progressText(q, s) or "",
+            description = q.def.description,
         })
+    end
+
+    -- A quest's shape: its steps' kinds, with what a collect step wants ("talk|collect:<tag>:2|talk"). A quest
+    -- whose shape changed since a cat's progress on it was saved starts over; new lines or a new title don't.
+    local function shapeOf(def)
+        local parts = {}
+        for _, s in ipairs(def.steps or {}) do
+            parts[#parts + 1] = s["do"] == "collect" and ("collect:" .. tostring(s.item) .. ":" .. tostring(s.count or 1))
+                or tostring(s["do"])
+        end
+        return table.concat(parts, "|")
     end
 
     local function reportAll()
@@ -173,6 +202,9 @@ return function(state)
     -- a spot beside your cat with room, each a little further round.
     local function place(c, i)
         if c.def.at then
+            -- A spot typed in with no facing: the cat turns to your cat the first time it's there (below), and
+            -- keeps that way.
+            c.faceOnce = c.def.yaw == nil and not c.faced
             return spawn(c, c.def.at, c.def.yaw, c.def.level)
         end
         local mine = P.cats[c.key]
@@ -223,15 +255,43 @@ return function(state)
     end
 
     -- ------------------------------------------------------------------ starting and stopping
+    -- When the sandbox cat in a slot was made, from the list of sandbox cats (registry.lua), or nil.
+    local function madeOf(s)
+        for _, e in ipairs(Reg and Reg.all() or {}) do
+            if e.slot == s then return e.made end
+        end
+        return nil
+    end
+
+    -- This cat's own record: a cat made this time, or one made after the record was written (a deleted cat's
+    -- slot used again), starts afresh. A record with no stamp (Sandbox mode 0.4 wrote those) is this cat's,
+    -- unless the cat was made just now, and takes the stamp from here on.
+    local function progressFor(s, new)
+        local saved = readAll()[tostring(s)]
+        if type(saved) ~= "table" then saved = nil end
+        local made = madeOf(s)
+        local other = saved and ((saved.made and made and saved.made ~= made) or (new and saved.made ~= made))
+        if other then
+            MOD.log("slot %s holds a new sandbox cat: its questlines start from the beginning", tostring(s))
+            saved = nil
+        end
+        local p = saved or {}
+        p.made = made or p.made
+        p.quests = type(p.quests) == "table" and p.quests or {}
+        p.cats = type(p.cats) == "table" and p.cats or {}
+        return p, saved == nil
+    end
+
     local function start(info)
         local data = read()
         if not data then
-            MOD.log("no cats or questlines from Clan Mod Studio (the WCModsStory mod isn't installed)")
+            MOD.log("no cats or questlines from Clan Mod Studio (the WCModsStory mod isn't installed, or Sandbox mode is too old for it)")
             return
         end
         slot = info.slot
-        P = readAll()[tostring(slot)] or {}
-        P.quests, P.cats = P.quests or {}, P.cats or {}
+        local fresh
+        P, fresh = progressFor(slot, info.new)
+        local restarted = {}
         cats, catByKey, quests, mods = {}, {}, {}, {}
         for _, m in ipairs(data.mods) do
             local mod = { id = m.id, name = m.name or m.id, byId = {} }
@@ -243,17 +303,34 @@ return function(state)
                 catByKey[c.key] = c
             end
             for _, def in ipairs(m.quests or {}) do
-                local key = m.id .. "/" .. def.id
-                P.quests[key] = P.quests[key] or { step = 1, got = 0 }
-                local q = { key = key, def = def, mod = mod, p = P.quests[key] }
+                local key, shape = m.id .. "/" .. def.id, shapeOf(def)
+                local p = P.quests[key]
+                if p and p.shape and p.shape ~= shape then
+                    -- Its steps changed in Clan Mod Studio since this cat got as far as it did: from the start,
+                    -- done or not.
+                    MOD.log("%s changed in Clan Mod Studio, so it starts again", key)
+                    restarted[#restarted + 1] = def.title
+                    p = nil
+                end
+                p = p or { step = 1, got = 0 }
+                p.shape = shape   -- one saved before shapes were kept takes today's and goes on
+                P.quests[key] = p
+                local q = { key = key, def = def, mod = mod, p = p }
                 if q.p.step > #def.steps then q.p.done = true end
                 quests[#quests + 1] = q
                 mod.byId[def.id] = q
             end
         end
         running = true
+        remember()   -- the stamp and the shapes, at once
         reportAll()
-        MOD.log("%d cats and %d quests from Clan Mod Studio, for the sandbox cat in slot %s", #cats, #quests, tostring(slot))
+        if nativeHud then
+            for _, title in ipairs(restarted) do
+                Game.hud.banner("update", { title = title, text = title .. " changed in Clan Mod Studio, so it starts again" })
+            end
+        end
+        MOD.log("%d cats and %d quests from Clan Mod Studio, for the sandbox cat in slot %s%s", #cats, #quests, tostring(slot),
+                fresh and " (from the beginning)" or "")
     end
 
     local function stop()
@@ -280,7 +357,7 @@ return function(state)
         local on = state.active and state.ready and Game.player() ~= nil
         if on and not running and seen ~= state.slot then
             seen = state.slot
-            local ok, err = pcall(start, { slot = state.slot })
+            local ok, err = pcall(start, { slot = state.slot, new = state.new == true })
             if not ok then MOD.log("the cats and questlines didn't start: %s", tostring(err)) end
         elseif not state.active and (running or seen ~= nil) then
             seen = nil
@@ -290,6 +367,29 @@ return function(state)
         -- Cats not in the world yet (the first second, or no room beside you) are put there.
         for i, c in ipairs(cats) do
             if not c.npc then place(c, i) end
+        end
+        for _, c in ipairs(cats) do
+            local there = c.npc and c.npc:valid()
+            -- A cat at a spot with no facing turns to your cat once, the first time it's there.
+            if there and c.faceOnce then
+                c.npc:face()
+                c.faceOnce, c.faced = false, true
+            end
+            -- A cat that waits a while for another level says so, once, in the log (the Mods card shows it).
+            if there then
+                c.waitingSince = nil
+            else
+                c.waitingSince = c.waitingSince or os.clock()
+                if not c.waitSaid and os.clock() - c.waitingSince > WAIT_SAID then
+                    c.waitSaid = true
+                    local level = c.npc and c.npc.level
+                    if level and level ~= Game.levelName() then
+                        MOD.log("%s waits for %s; you're in %s", c.def.name, levelWords(level), levelWords(Game.levelName()))
+                    elseif not c.npc then
+                        MOD.log("%s has no room beside your cat yet", c.def.name)
+                    end
+                end
+            end
         end
         if native then
             for _, c in ipairs(cats) do
@@ -544,6 +644,28 @@ return function(state)
     end)
 
     -- ------------------------------------------------------------------ the mod menu
+    -- Where a cat is, in words, for the page below.
+    local function catStatus(c)
+        if c.npc and c.npc:valid() then return "In the world" end
+        local level = c.npc and c.npc.level
+        if level and level ~= Game.levelName() then return "Waiting for " .. levelWords(level) end
+        if not c.npc then return "No room beside you yet" end
+        return "On its way"
+    end
+
+    -- Every questline back to its first step for this sandbox cat; where its cats stand is kept.
+    local function startAllOver()
+        local keep = {}
+        for _, q in ipairs(quests) do
+            q.p.step, q.p.got, q.p.done = 1, 0, nil
+            keep[q.key] = q.p
+        end
+        P.quests, focus, done = keep, nil, {}
+        MOD.log("every questline starts over for the sandbox cat in slot %s", tostring(slot))
+        remember()
+        reportAll()
+    end
+
     MOD.page(function(ui)
         ui.heading("Questlines")
         if not running then
@@ -554,18 +676,24 @@ return function(state)
         for _, q in ipairs(quests) do
             local s = stepOf(q)
             ui.field(q.def.title, q.p.done and "Done" or not started(q) and "Not started yet" or (objective(q, s) .. " (" .. progressText(q, s) .. ")"))
+            if q.def.description then ui.note(q.def.description) end
             if (q.p.done or q.p.step > 1) and ui.button("Start " .. q.def.title .. " over") then
                 q.p.step, q.p.got, q.p.done = 1, 0, nil
                 remember()
                 reportAll()
             end
         end
-        local show = ui.switch("Show the quest panel", showPanel)
-        if show ~= showPanel then showPanel = show end
+        if #quests > 1 and ui.button("Start every questline over") then startAllOver() end
+        -- The drawn panel is for a wcmods without the game's own objective panel.
+        if not nativeHud then
+            local show = ui.switch("Show the quest panel", showPanel)
+            if show ~= showPanel then showPanel = show end
+        end
         ui.space(8)
         ui.heading("Cats")
         for _, c in ipairs(cats) do
+            ui.field(c.def.name, catStatus(c))
             if not c.def.at and ui.button("Bring " .. c.def.name .. " here") then bring(c) end
         end
-    end, { title = "Questlines" })
+    end, { title = "Questlines", group = "story" })
 end

@@ -1,0 +1,24 @@
+# Sandbox mode's tests on every pull request and every push to main: every Lua file loads, and
+# tests/story_spec.lua drives the story part with the game stubbed, under Lua 5.4 (the version UE4SS embeds);
+# then the release .zips are packed, which checks the example's copy of the API is the same as api/'s. The
+# rest is tried in game (README, "Tried in game").
+name: tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  lua:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leafo/gh-actions-lua@v13.1.0
+        with:
+          luaVersion: "5.4"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python tests/run.py
+        env:
+          REQUIRE_LUA: "1"
+      - run: python tools/pack.py

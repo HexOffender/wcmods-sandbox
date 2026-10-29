@@ -2,7 +2,7 @@
 -- no story and no quests, a clean slate for other mods to fill. frontend.lua is the main menu's button and
 -- the cat choice; world.lua is the forest with a sandbox cat, and what other mods see of it;
 -- registry.lua is the list of sandbox cats; story.lua brings in the cats and questlines made in Clan Mod
--- Studio.
+-- Studio; patrol.lua walks the cats that have a patrol route.
 if not Game then
     MOD.log("WCModsGame didn't load, so there's no sandbox mode")
     return
@@ -16,7 +16,7 @@ local Reg = require("registry")
 --   active     a sandbox cat is in the forest (or loading into it); new, it was made this time; clan
 local state = {}
 
-for _, part in ipairs({ "frontend", "world", "story" }) do
+for _, part in ipairs({ "frontend", "world", "story", "patrol" }) do
     local ok, err = pcall(function() require(part)(state, Reg) end)
     if not ok then MOD.log("the %s part didn't start: %s", part, tostring(err)) end
 end

@@ -97,6 +97,67 @@ the other, and a herb of its own for the reward.
 
 ## For mod makers
 
+### Patrols
+
+A cat in a mod's `npcs.json` can walk a route by itself: add a `patrol` block. (Needs a wcmods with
+`npc:walkTo`, and the studio's story export passing `patrol` through. Points are world coordinates in cm,
+the cat's level's, as `x`, `y`, `z`, or `[x, y, z]`.)
+
+```json
+"patrol": {
+  "mode": "pingpong",
+  "speed": 140,
+  "retries": 2,
+  "wait": 2,
+  "points": [
+    { "x": 0,   "y": 0,   "z": 0, "wait": { "min": 3, "max": 8 } },
+    { "x": 800, "y": 0,   "z": 0, "wait": { "until": { "quest": "soft-nest" }, "timeout": 300 } },
+    { "x": 800, "y": 800, "z": 0, "wait": "none" }
+  ]
+}
+```
+
+| Key | |
+|---|---|
+| `points` | The route, at least one: `{x, y, z}` with an optional `level` (a point in another level than the cat's is skipped) and `wait` |
+| `mode` | `pingpong` (default): A B C D C B A B...; `loop`: A B C D A B...; `once`: A B C D, then it stays |
+| `speed` | cm/s (default: wcmods' own, 175) |
+| `retries` | How often a blocked walk is tried again, a second apart, before the point is skipped and the log says so (default 2) |
+| `enabled` | `false` turns the patrol off |
+| `wait` | What a point with no `wait` of its own does: nothing, by default |
+
+**Waits** (`wait` on a point, or on the patrol as the default):
+
+| `wait` | The cat |
+|---|---|
+| `5` | stands 5 seconds |
+| `{"min": 3, "max": 8}` or `[3, 8]` | stands a random time between |
+| `"none"` | walks straight on |
+| `"release"` | stands until released with `Sandbox.patrol.release("<mod id>/<cat id>")` |
+| `{"until": {...}, "timeout": 60}` | stands until any one of `until`'s triggers, or `timeout` seconds (optional) |
+
+`until` takes any of: `"quest": "id"` (that quest is done; `"mod/id"` for another mod's), with `"step": 2`
+(it has reached its step 2) instead of done; `"event": "name"` (some script raised it); `"release": true`
+or a name (released as above). Events and releases count only while the cat is waiting: one from before it
+began waiting is missed. A quest that doesn't exist doesn't hold the cat (the log says so).
+
+The cat stops while it's being talked to and goes on after (a timed wait doesn't run down meanwhile), goes
+back to its walk after its level loads again, and stops when Sandbox mode ends. Any mod can raise events:
+
+```lua
+local Sandbox = require("sandbox_api")
+Sandbox.raise("gate-open")                      -- cats waiting for {"until": {"event": "gate-open"}} go on
+Sandbox.patrol.release("mine/duskwhisker")      -- or release one cat; add a name for {"release": "name"}
+```
+
+(Both set the shared variable `Sandbox.event.<name>` up by one; a release is
+`Sandbox.event.patrol.release.<mod id>/<cat id>.<name>`.) [`examples/sandbox-story`](examples/sandbox-story)
+has two: Sparrowpaw walks a route with timed waits, and Duskwhisker stands at his post until *A Soft Nest*
+is done. Its coordinates are placeholders: put in points from your own map. A point the cat can't reach
+(inside a rock, off the walkable ground) is tried `retries` more times, then skipped, with a line in the log.
+
+### The rest
+
 Sandbox mode does nothing with the world but take the story out. What goes in is up to other mods: cats of
 their own (`Game.npcs`), talk (`Game.dialogue`), quests of their own (`Game.quests.report` lists them on
 the mod menu's Quests page), items as pickups (`Game.items.drop`), the time of day and so on, all from
@@ -171,6 +232,7 @@ sandbox/
   scripts/registry.lua  the list of sandbox cats (sandbox.json)
   scripts/story.lua     the cats and questlines from Clan Mod Studio (wcmods shares them as WCMods.story),
                         with the game's own labels and Talk prompt (npc:label, npc:prompt)
+  scripts/patrol.lua    walks the cats that have a `patrol` (npc:walkTo), with its waits and triggers
 ```
 
 - **The button** is one more of the main menu's own buttons (`WBP_GuiButtonMenu_C`), put in its column
@@ -199,8 +261,8 @@ sandbox/
 
 ## Tests
 
-`python tests/run.py` checks that every Lua file loads, then runs `tests/story_spec.lua`: the story part
-(`scripts/story.lua`) with the game stubbed, driven through what it registers (its half-second keeper, the
+`python tests/run.py` checks that every Lua file loads, then runs `tests/story_spec.lua` and `tests/patrol_spec.lua`: the story part
+(`scripts/story.lua`) and the patrol part (`scripts/patrol.lua`, driven with a stubbed `npc:walkTo` and a clock) with the game stubbed, driven through what they register (the half-second keeper, the
 `itemPickedUp` event, the Talk prompt, its drawing and its mod menu page). It needs Lua 5.4, the version
 UE4SS embeds (`lua5.4`, or a `lua` that is 5.4, on the PATH); without one it says so and skips. CI runs it
 on every pull request, and packs the .zips.

@@ -44,7 +44,11 @@ def main():
     if bad:
         return 1
     print("ok    every Lua file loads")
-    return subprocess.run([lua, os.path.join(HERE, "story_spec.lua")]).returncode
+    for spec in ("story_spec.lua", "patrol_spec.lua"):
+        code = subprocess.run([lua, os.path.join(HERE, spec)]).returncode
+        if code:
+            return code
+    return 0
 
 
 if __name__ == "__main__":

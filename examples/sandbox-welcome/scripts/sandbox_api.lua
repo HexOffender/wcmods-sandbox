@@ -92,4 +92,21 @@ function Sandbox.onLeave(fn)
     watch()
 end
 
+-- Named events and patrols. A cat's patrol (npcs.json) can wait for an event: {"until": {"event": "gate-open"}}.
+-- Sandbox.raise("gate-open") fires it for every cat waiting on it at that moment (a cat that isn't waiting yet
+-- misses it). Sandbox.patrol.release(key) lets the cat "<mod id>/<cat id>" go on from a wait for
+-- {"release": true} (or "release"); with a name, release(key, "name") answers {"release": "name"}.
+-- Both bump a counter in a shared variable, "Sandbox.event.<name>", that the patrol part watches.
+function Sandbox.raise(name)
+    if type(name) ~= "string" or name == "" then return false end
+    local n = tonumber(get("event." .. name)) or 0
+    return (pcall(function() ModRef:SetSharedVariable("Sandbox.event." .. name, n + 1) end))
+end
+
+Sandbox.patrol = {}
+function Sandbox.patrol.release(key, name)
+    if type(key) ~= "string" or key == "" then return false end
+    return Sandbox.raise("patrol.release." .. key .. "." .. (type(name) == "string" and name or ""))
+end
+
 return Sandbox

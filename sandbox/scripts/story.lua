@@ -591,6 +591,19 @@ return function(state, Reg)
         if talking and #Game.screens() == 0 then nextLine() end
     end)
 
+    -- What the patrol part (patrol.lua) reads: the cats, a quest's progress, and who is being talked to.
+    state.story = {
+        cats = function() return running and cats or {} end,
+        talking = function() return talking and talking.cat or nil end,
+        quest = function(modId, id)
+            local m
+            for _, x in ipairs(mods) do if x.id == modId then m = x end end
+            local q = m and m.byId[id]
+            if not q then return nil end
+            return { started = started(q), done = q.p.done == true, step = q.p.step }
+        end,
+    }
+
     -- ------------------------------------------------------------------ on screen
     Draw.onFrame(function(d)
         if not running or not d.view or not Game.player() then return end

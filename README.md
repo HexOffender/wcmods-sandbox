@@ -151,10 +151,12 @@ Sandbox.patrol.release("mine/duskwhisker")      -- or release one cat; add a nam
 ```
 
 (Both set the shared variable `Sandbox.event.<name>` up by one; a release is
-`Sandbox.event.patrol.release.<mod id>/<cat id>.<name>`.) [`examples/sandbox-story`](examples/sandbox-story)
-has two: Sparrowpaw walks a route with timed waits, and Duskwhisker stands at his post until *A Soft Nest*
-is done. Its coordinates are placeholders: put in points from your own map. A point the cat can't reach
-(inside a rock, off the walkable ground) is tried `retries` more times, then skipped, with a line in the log.
+`Sandbox.event.patrol.release.<mod id>/<cat id>.<name>`.) The points above are only an example: a patrol needs
+places from your own map (stand there and press *Use where my cat is standing* on a Characters page cat's At one
+spot, or run `Game.cat():location()` in the Console), so the [`examples/sandbox-story`](examples/sandbox-story) cats have none. A point the cat can't
+reach (inside a rock, off the walkable ground) is tried `retries` more times, then skipped, with a line in the
+log. Bringing a patrolling cat beside you (the mod menu's page) moves it, and it walks back to its route a
+second later.
 
 ### The rest
 

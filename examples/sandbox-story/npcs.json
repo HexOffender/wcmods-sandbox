@@ -30,39 +30,7 @@
       "size": 0.7,
       "lines": [
         "Have you seen Brindlemoon? She knows all the old stories."
-      ],
-      "at": [0, 0, 0],
-      "patrol": {
-        "mode": "pingpong",
-        "speed": 140,
-        "points": [
-          { "x": 0, "y": 0, "z": 0, "wait": { "min": 3, "max": 8 } },
-          { "x": 800, "y": 0, "z": 0, "wait": 4 },
-          { "x": 800, "y": 800, "z": 0 }
-        ]
-      }
-    },
-    {
-      "id": "duskwhisker",
-      "name": "Duskwhisker",
-      "title": "Sentry",
-      "colours": { "fur": "#4a4a52" },
-      "eyes": 2,
-      "lines": [
-        "Camp is quiet today."
-      ],
-      "at": [0, 400, 0],
-      "patrol": {
-        "mode": "loop",
-        "points": [
-          {
-            "x": 0, "y": 400, "z": 0,
-            "wait": { "until": { "quest": "soft-nest" }, "timeout": 300 }
-          },
-          { "x": 1200, "y": 400, "z": 0, "wait": 5 },
-          { "x": 1200, "y": -400, "z": 0 }
-        ]
-      }
+      ]
     }
   ]
 }

@@ -85,7 +85,8 @@ runs the quests:
 - **Versions that go together:** the game's own labels and *Talk* prompt need a wcmods with
   `Game.npcs.onInteract`; the objective panel and the map markers need one with `Game.hud` and
   `Game.mapMarker`; a character's fixed look (Same look every time) needs Sandbox mode 0.5; progress per
-  cat and quests that start over when changed are 0.5's too. A `sandbox-story.json` written by 0.4 is kept
+  cat and quests that start over when changed are 0.5's too; patrols (a cat walking a route) need Sandbox
+  mode 0.6 and a wcmods with `npc:walkTo` (Clan Mod Studio after 0.4.0). A `sandbox-story.json` written by 0.4 is kept
   as it is and takes the new records from its next save. Clan Mod Studio's Characters and Questlines pages
   say which version you have and what it can show.
 

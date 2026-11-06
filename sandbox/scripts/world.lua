@@ -12,16 +12,20 @@
 --   Sandbox.session  goes up by one each time a sandbox cat comes into the forest
 --   Sandbox.new      true when that cat was made this time
 --   Sandbox.version  this mod's version
+-- C++ mods get the same values, by the same names, through wcmods' WCModsCpp.share (read with wcmods::shared): a C++
+-- mod can't read UE4SS's shared variables. UE4SS starts C++ mods before Lua ones, so WCModsCpp is here by then
+-- whenever a C++ mod built with wcmods' SDK is installed.
 local WORLD = "L_WorldMap_01_P"
 local NARRATIVE = "Gameplay.Narrative."
 local SKIP_HOLD = 2.5   -- seconds the skip is held: long enough for the game's hold to fill (seen in game)
-local VERSION = "0.6"    -- mod.json's
+local VERSION = "0.7"    -- mod.json's
 
 return function(state, Reg)
     local session = 0
 
     local function share(name, value)
         pcall(function() ModRef:SetSharedVariable("Sandbox." .. name, value) end)
+        if WCModsCpp and WCModsCpp.share then pcall(WCModsCpp.share, "Sandbox." .. name, value) end
     end
     share("version", VERSION)
 

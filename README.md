@@ -207,6 +207,11 @@ mod shares through UE4SS's shared variables, which any UE4SS Lua mod can read it
 | `Sandbox.session` | Goes up by one each time a sandbox cat comes into the forest |
 | `Sandbox.version` | This mod's version |
 
+**C++ mods** can't read UE4SS's shared variables, so Sandbox mode (0.7 and later) hands each of these to them
+too, by the same name, through wcmods' C++ SDK: `wcmods::shared("Sandbox.ready").boolean(false)`, and
+`wcmods::shared("Sandbox.version").is_null()` when Sandbox mode isn't running. They're set whenever they
+change, from the moment Sandbox mode starts.
+
 Keep what your mod remembers per cat by its slot, in a file of your own in `Game.save.folder()`, as the
 example does.
 
@@ -255,7 +260,8 @@ sandbox/
     quests cleared, an empty Quest tab, an apprentice in its camp;
   - a sandbox cat loaded again, from Sandbox Mode and from Prophecy Mode;
   - a story cat left with its quests, and the cat choice's labels in both modes;
-  - the shared variables, read from another mod;
+  - the shared variables, read from another mod (and, from 0.7, from a C++ mod:
+    [Real-time combat](https://github.com/HexOffender/wcmods-realtime-combat));
   - `ready` coming after the skipped scenes;
   - the example's whole quest: talk, pickups, hand-in, reward, and progress kept per cat.
 

@@ -8,7 +8,9 @@
     "mod-menu"
   ],
   "game_builds": [
-    26184573
+    26184573,
+    26337109,
+    26391405
   ],
   "settings_page": false,
   "enabled": true,
